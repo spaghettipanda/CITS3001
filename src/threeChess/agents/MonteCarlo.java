@@ -1,5 +1,6 @@
 package threeChess.agents;
 
+import java.util.*;
 import threeChess.*;
 
 import java.util.Random;
@@ -12,7 +13,7 @@ import java.util.Random;
  * **/ 
 public class MonteCarlo extends Agent{
   
-  private static final String name = "Copy Cat";
+  private static final String name = "MonteCarlo";
   private static final Random random = new Random();
 
 
@@ -22,6 +23,15 @@ public class MonteCarlo extends Agent{
    * **/
   public MonteCarlo(){
   }
+
+  
+  /*
+  public List<State> getAllPossibleStates(){
+      // constructs a list of all possible states from current state
+
+  }
+  */
+  
 
   /**
    * Play a move in the game. 
@@ -34,8 +44,45 @@ public class MonteCarlo extends Agent{
    * current position of the piece to be moved, and the second element is the 
    * position to move that piece to.
    * **/
+  
+  public class Node{
+	  State state;
+	  Node parent;
+	  List<Node> childArray;
+	  //setters and getters
+  }
+  public class Tree{
+	  Node root;
+  }
+  
+  public class State{
+	  Board board;
+	  int playerNo;
+	  int visitCount;
+	  double winScore; 
+  }
+  
+  
+  public class MonteCarloTreeSearch{
+	  static final int WIN_SCORE = 10;
+	  int level;
+	  int opponent;
+	  
+	  public Board findNextMove(Board, board, int playerNo) {
+	        // define an end time which will act as a terminating condition
+		  
+		  opponent
+	  }
+  }
+  
+  
   public Position[] playMove(Board board){
 	  
+	  
+	  
+	  
+	  
+	  // RANDOM MOVE AFTER HERE
 	  int moveCount = board.getMoveCount();
 	  if(moveCount>0) {
 		  Position[] lastMove = board.getMove(moveCount-1);
@@ -46,29 +93,29 @@ public class MonteCarlo extends Agent{
 		  }
 		  catch(ImpossiblePositionException e) {}
 	  }
-    Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
-    Position start = pieces[0];
-    Position end = pieces[0]; //dummy illegal move
-    while (!board.isLegalMove(start, end)){
-      start = pieces[random.nextInt(pieces.length)];
-      Piece mover = board.getPiece(start);
-      Direction[][] steps = mover.getType().getSteps();
-      Direction[] step = steps[random.nextInt(steps.length)];
-      int reps = 1 + random.nextInt(mover.getType().getStepReps());
-      end = start;
-      try{
-        for(int i = 0; i<reps; i++)
-          end = board.step(mover, step, end, start.getColour()!=end.getColour());
-      }catch(ImpossiblePositionException e){}
-    }
-    return new Position[] {start,end};
+	  Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+	  Position start = pieces[0];
+	  Position end = pieces[0]; //dummy illegal move
+	  while (!board.isLegalMove(start, end)){
+		  start = pieces[random.nextInt(pieces.length)];
+		  Piece mover = board.getPiece(start);
+		  Direction[][] steps = mover.getType().getSteps();
+		  Direction[] step = steps[random.nextInt(steps.length)];
+		  int reps = 1 + random.nextInt(mover.getType().getStepReps());
+		  end = start;
+		  try{
+		    for(int i = 0; i<reps; i++)
+		      end = board.step(mover, step, end, start.getColour()!=end.getColour());
+		  }catch(ImpossiblePositionException e){}
+	  }
+	  return new Position[] {start,end};
   }
-
+	
   /**
    * @return the Agent's name, for annotating game description.
-   * **/ 
+   **/ 
   public String toString(){return name;}
-
+	
   /**
    * Displays the final board position to the agent, 
    * if required for learning purposes. 
