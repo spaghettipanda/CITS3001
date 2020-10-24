@@ -67,29 +67,12 @@ public class MonteCarlo extends Agent{
 	  int iterations = 0;
 	  
 	  //Iterate 100 times
-	  while(iterations < 100) {
-		  System.out.println(iterations + "/100 iterations");
+	  while(iterations <= 5000) {
+		  System.out.println(iterations + "/5000 iterations");
 		  
 		  //Find a leaf node with the best UCB score
-		  while(currentNode.children.size() != 0) {
-			  double UCBScore = 0;
-			  double bestUCBScore = Integer.MIN_VALUE;
-			  
-			  Node bestUCBNode = null;
-			  
-			  for(int i = 0; i < rootNode.children.size(); i++) {
-				  if(rootNode.children.get(i).visits == 0) {
-					  currentNode = rootNode.children.get(i);
-				  }
-				  UCBScore = ((double)rootNode.children.get(i).score/(double)rootNode.children.get(i).visits)+1.41*Math.sqrt(Math.log(rootNode.visits)/(double)rootNode.children.get(i).visits);
-				  if(UCBScore > bestUCBScore) {
-					  bestUCBScore = UCBScore;
-					  bestUCBNode = rootNode.children.get(i);
-				  }
-			  }
-			  currentNode = bestUCBNode;
-		  }  
-		  
+		  currentNode = pickLeafNode(rootNode, rootNode.visits);
+	  
 		  //Expand the unvisited promising node
 		  if(currentNode.visits > 0) {
 			  expandNode(currentNode);
@@ -97,13 +80,18 @@ public class MonteCarlo extends Agent{
 			  currentNode = currentNode.children.get(0);
 		  }
 		  
-		  //rollout(currentNode, rootnode.board.getTurn());
-		  //backpropagate(currentNode);
+		  rollOut(currentNode, rootNode.board.getTurn());
+		  backPropagate(currentNode);
 		  iterations++;
 	  }
-	  
 	  //find most visited node
+	  return chooseMove(rootNode);
+  }
+
+  
+  public Position[] chooseMove(Node rootNode) {
 	  int mostVisits = 0;
+	  Node currentNode = null;
 	  
 	  //Iterate through nodes
 	  int numberOfChildren = rootNode.children.size();
@@ -131,11 +119,19 @@ public class MonteCarlo extends Agent{
 		  }
 		  catch(ImpossiblePositionException e) {}
 	  }
-	  
 	  return null;
   }
   
-  /*public Node UCBcheck(Node node, int pVisits) {
+  public Node pickLeafNode(Node node, int parentvisits){
+	    Node currentnode = node;
+	    while (currentnode.children.size()!= 0){
+
+	      currentnode = UCBcheck(currentnode, parentvisits);
+	    }
+	    return currentnode;
+	  }
+  
+  public Node UCBcheck(Node node, int pVisits) {
 	  double UCBScore = 0; 
 	  double bestUCBScore = Integer.MIN_VALUE;
 	  Node bestUCBNode = null;
@@ -150,21 +146,94 @@ public class MonteCarlo extends Agent{
 		  }
 	  }
 	  return bestUCBNode;
-  }*/
+  }
   
-  
-  
-  public Position[] playCopyCatMove(Board board){
-	  int moveCount = board.getMoveCount();
-	  if(moveCount>0) {
-		  Position[] lastMove = board.getMove(moveCount-1);
+  public void expandNode(Node node){
+	  Board initialBoard = node.board;
+	  
+	  Position[] piecePositions = initialBoard.getPositions(node.board.getTurn()).toArray(new Position[0]);
+	  for(int i = 0; i < piecePositions.length; i++) {
+		  Position start = piecePositions [i];
+		  Position end = piecePositions[i];
+		  
+		  Piece movePiece = initialBoard.getPiece(start);
+		  Direction[][] directions = movePiece.getType().getSteps();
+		  int reps = movePiece.getType().getStepReps();
+		  for(int j = 0; j < directions.length; j++) {
+			  try {
+				  end = initialBoard.step(movePiece, directions[j], start);
+			  }
+			  catch(ImpossiblePositionException e) {}
+			  repeatSteps(node, movePiece, start, end, directions[j]);
+		  }
+		  
+	  }
+  }
+
+  public void repeatSteps(Node node, Piece movePiece, Position start, Position end, Direction[] direction) {
+	  int a = -1;
+	  Board boardSimulation = null;
+	  int reps = movePiece.getType().getStepReps();
+	  
+	  while(node.board.isLegalMove(start, end) && ++a < reps) {
 		  try {
-			  Position start = Position.get(Colour.values()[(lastMove[0].getColour().ordinal()+1)%3], lastMove[0].getRow(), lastMove[0].getColumn());
-			  Position end = Position.get(Colour.values()[(lastMove[1].getColour().ordinal()+1)%3], lastMove[1].getRow(), lastMove[1].getColumn());
-			  if(board.isLegalMove(start, end)) return new Position[] {start,end};
+			  boardSimulation = (Board)node.board.clone();
+		  }
+		  catch(CloneNotSupportedException e) {};
+		  try {
+			  boardSimulation.move(start, end);
+		  }
+		  catch(ImpossiblePositionException e) {}
+		  Node newNode = new Node(boardSimulation, node);
+		  node.children.add(newNode);
+		  try {
+			  end = node.board.step(movePiece, direction, end);
+		  }
+		  catch(ImpossiblePositionException e) {};
+	  }
+  }
+  
+  
+  public void rollOut(Node node, Colour playerColour) {
+	  Board boardSimulation = null;
+	  try {
+		  boardSimulation = (Board)node.board.clone();
+	  }
+	  catch(CloneNotSupportedException e) {};
+	  while(boardSimulation.gameOver() != false) {
+		  Position[] executeMoves = playCopyCatMove(boardSimulation);
+		  try {
+			  boardSimulation.move(executeMoves[0], executeMoves[1]);
 		  }
 		  catch(ImpossiblePositionException e) {}
 	  }
+	  Colour winner = boardSimulation.getWinner();
+	  if(winner == playerColour) {
+		  node.score = 1;
+	  }
+	  else {
+		  if(winner == null) {
+			  node.score = 0;
+		  }
+		  else {
+			  node.score = -1;
+		  }
+	  }
+  }
+  
+  public void backPropagate(Node node) {
+	  node.visits++;
+	  int score = node.score;
+	  Node currentNode = node;
+	  
+	  while(currentNode.parentNode != null) {
+		  currentNode = currentNode.parentNode;
+		  currentNode.score += score;
+		  currentNode.visits++;
+	  }
+  }
+  
+  public Position[] playCopyCatMove(Board board){
 	  Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
 	  Position start = pieces[0];
 	  Position end = pieces[0]; //dummy illegal move
@@ -181,6 +250,10 @@ public class MonteCarlo extends Agent{
 		  }catch(ImpossiblePositionException e){}
 	  }
 	  return new Position[] {start,end};
+  }
+  
+  public Position[] playMove(Board board) {
+	  return MonteCarloTreeSearch(board);
   }
 	
   /**
