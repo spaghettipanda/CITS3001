@@ -24,27 +24,6 @@ public class MonteCarlo extends Agent{
   public MonteCarlo(){
   }
 
-  
-  /*
-  public List<State> getAllPossibleStates(){
-      // constructs a list of all possible states from current state
-
-  }
-  */
-  
-
-  /**
-   * Play a move in the game. 
-   * The agent is given a Board Object representing the position of all pieces, 
-   * the history of the game and whose turn it is. 
-   * They respond with a move represented by a pair (two element array) of positions: 
-   * the start and the end position of the move.
-   * @param board The representation of the game state.
-   * @return a two element array of Position objects, where the first element is the 
-   * current position of the piece to be moved, and the second element is the 
-   * position to move that piece to.
-   * **/
-  
   //Class for Node
   public class Node{
 	  Board board;
@@ -79,28 +58,52 @@ public class MonteCarlo extends Agent{
 
 	  //initialise with first node
 	  Node rootNode = new Node(board);
+	  Node currentNode = null;	  
 	  
 	  //initialise move
 	  Position[] move = null;
 	  
-	  /*	  
-	  Define end time -> iterations?
-	  */
-	  
+	  //Variable to check number of iterations
 	  int iterations = 0;
 	  
+	  //Iterate 100 times
 	  while(iterations < 100) {
 		  System.out.println(iterations + "/100 iterations");
 		  
-		  //select a promising node
+		  //Find a leaf node with the best UCB score
+		  while(currentNode.children.size() != 0) {
+			  double UCBScore = 0;
+			  double bestUCBScore = Integer.MIN_VALUE;
+			  
+			  Node bestUCBNode = null;
+			  
+			  for(int i = 0; i < rootNode.children.size(); i++) {
+				  if(rootNode.children.get(i).visits == 0) {
+					  currentNode = rootNode.children.get(i);
+				  }
+				  UCBScore = ((double)rootNode.children.get(i).score/(double)rootNode.children.get(i).visits)+1.41*Math.sqrt(Math.log(rootNode.visits)/(double)rootNode.children.get(i).visits);
+				  if(UCBScore > bestUCBScore) {
+					  bestUCBScore = UCBScore;
+					  bestUCBNode = rootNode.children.get(i);
+				  }
+			  }
+			  currentNode = bestUCBNode;
+		  }  
 		  
+		  //Expand the unvisited promising node
+		  if(currentNode.visits > 0) {
+			  expandNode(currentNode);
+			  
+			  currentNode = currentNode.children.get(0);
+		  }
+		  
+		  //rollout(currentNode, rootnode.board.getTurn());
+		  //backpropagate(currentNode);
 		  iterations++;
 	  }
 	  
 	  //find most visited node
 	  int mostVisits = 0;
-	  
-	  Node currentNode = null;
 	  
 	  //Iterate through nodes
 	  int numberOfChildren = rootNode.children.size();
@@ -116,7 +119,6 @@ public class MonteCarlo extends Agent{
 	  }
 	  
 	  int moveCount = currentNode.board.getMoveCount();
-	  
 	  if(moveCount > 0) {
 		  Position[] lastMove = currentNode.board.getMove(moveCount - 1);
 		  
@@ -133,6 +135,22 @@ public class MonteCarlo extends Agent{
 	  return null;
   }
   
+  /*public Node UCBcheck(Node node, int pVisits) {
+	  double UCBScore = 0; 
+	  double bestUCBScore = Integer.MIN_VALUE;
+	  Node bestUCBNode = null;
+	  for(int i = 0; i < node.children.size(); i++) {
+		  if(node.children.get(i).visits == 0) {
+			  return node.children.get(i);
+		  }
+		  UCBScore = ((double)node.children.get(i).score/(double)node.children.get(i).visits)+1.41*Math.sqrt(Math.log(pVisits)/(double)node.children.get(i).visits);
+		  if(UCBScore > bestUCBScore) {
+			  bestUCBScore = UCBScore;
+			  bestUCBNode = node.children.get(i);
+		  }
+	  }
+	  return bestUCBNode;
+  }*/
   
   
   
