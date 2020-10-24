@@ -45,44 +45,98 @@ public class MonteCarlo extends Agent{
    * position to move that piece to.
    * **/
   
+  //Class for Node
   public class Node{
-	  State state;
-	  Node parent;
-	  List<Node> childArray;
-	  //setters and getters
-  }
-  public class Tree{
-	  Node root;
-  }
-  
-  public class State{
 	  Board board;
-	  int playerNo;
-	  int visitCount;
-	  double winScore; 
-  }
-  
-  
-  public class MonteCarloTreeSearch{
-	  static final int WIN_SCORE = 10;
-	  int level;
-	  int opponent;
+	  Node parentNode;
+	  ArrayList<Node> children;
+	  int score;
+	  int visits;
 	  
-	  public Board findNextMove(Board, board, int playerNo) {
-	        // define an end time which will act as a terminating condition
-		  
-		  opponent
+	  // Constructors for Nodes
+	  
+	  //First Node has no parent
+	  Node(Board board){
+		  this.board = board;
+		  this.children = new ArrayList<Node>();
+		  this.score = 0;
+		  this.visits = 0;
+	  }
+	  
+	  //Other nodes require parents
+	  Node(Board board, Node parentNode){
+		  this.board = board;
+		  this.parentNode = parentNode;
+		  this.children = new ArrayList<Node>();
+		  this.score = 0;
+		  this.visits = 0;
 	  }
   }
+    
   
   
-  public Position[] playMove(Board board){
+  public Position[] MonteCarloTreeSearch(Board board){
+
+	  //initialise with first node
+	  Node rootNode = new Node(board);
 	  
+	  //initialise move
+	  Position[] move = null;
 	  
+	  /*	  
+	  Define end time -> iterations?
+	  */
 	  
+	  int iterations = 0;
 	  
+	  while(iterations < 100) {
+		  System.out.println(iterations + "/100 iterations");
+		  
+		  //select a promising node
+		  
+		  iterations++;
+	  }
 	  
-	  // RANDOM MOVE AFTER HERE
+	  //find most visited node
+	  int mostVisits = 0;
+	  
+	  Node currentNode = null;
+	  
+	  //Iterate through nodes
+	  int numberOfChildren = rootNode.children.size();
+	  
+	  for(int i = 0; i < numberOfChildren; i++) {
+		  Node child = rootNode.children.get(i);
+		  
+		  //Compare if visits on current node is more than most visits
+		  if(child.visits > mostVisits) {
+			  mostVisits = child.visits;
+			  currentNode = child;
+		  }
+	  }
+	  
+	  int moveCount = currentNode.board.getMoveCount();
+	  
+	  if(moveCount > 0) {
+		  Position[] lastMove = currentNode.board.getMove(moveCount - 1);
+		  
+		  try {
+			  
+			  //Taken from random agent provided
+			  Position start = Position.get(Colour.values()[lastMove[0].getColour().ordinal()], lastMove[0].getRow(), lastMove[0].getColumn());
+			  Position end = Position.get(Colour.values()[lastMove[1].getColour().ordinal()], lastMove[1].getRow(), lastMove[1].getColumn());
+			  return new Position[] {start,end};
+		  }
+		  catch(ImpossiblePositionException e) {}
+	  }
+	  
+	  return null;
+  }
+  
+  
+  
+  
+  public Position[] playCopyCatMove(Board board){
 	  int moveCount = board.getMoveCount();
 	  if(moveCount>0) {
 		  Position[] lastMove = board.getMove(moveCount-1);
@@ -123,7 +177,6 @@ public class MonteCarlo extends Agent{
    * @param finalBoard the end position of the board
    * **/
   public void finalBoard(Board finalBoard){}
-
 }
 
 
