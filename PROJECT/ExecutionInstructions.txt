@@ -1,0 +1,1 @@
+Simply compile and run, the tournament is set to have one MonteCarlo agent, but can be modified as required in the code
