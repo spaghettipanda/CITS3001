@@ -53,7 +53,7 @@ public class sh extends Agent{
 
   public Position[] mcts(Board board) {
     //initialise the start of mcts
-    int iterations = 4000;
+    int iterations = 1000;
     Node rootnode = new Node(board);
     Node currentNode = rootnode;
 

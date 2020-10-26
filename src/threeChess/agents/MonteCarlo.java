@@ -24,7 +24,49 @@ public class MonteCarlo extends Agent{
   public MonteCarlo(){
   }
 
-  //Class for Node
+  
+  /*
+   * Copy the last move played or play a Random move
+   */
+  public Position[] playCopyCatOrRandomMove(Board board){
+	  if(Math.random()%2 == 1) {
+		  int moveCount = board.getMoveCount();
+		  if(moveCount>0) {
+			  Position[] lastMove = board.getMove(moveCount-1);
+			  try {
+				  Position start = Position.get(Colour.values()[(lastMove[0].getColour().ordinal()+1)%3], lastMove[0].getRow(), lastMove[0].getColumn());
+				  Position end = Position.get(Colour.values()[(lastMove[1].getColour().ordinal()+1)%3], lastMove[1].getRow(), lastMove[1].getColumn());
+				  if(board.isLegalMove(start, end)) return new Position[] {start,end};
+			  }
+			  catch(ImpossiblePositionException e) {
+				  
+			  }
+		  }
+	  }
+	  Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
+	  Position start = pieces[0];
+	  Position end = pieces[0]; //dummy illegal move
+	  while (!board.isLegalMove(start, end)){
+		  start = pieces[random.nextInt(pieces.length)];
+		  Piece mover = board.getPiece(start);
+		  Direction[][] steps = mover.getType().getSteps();
+		  Direction[] step = steps[random.nextInt(steps.length)];
+		  int reps = 1 + random.nextInt(mover.getType().getStepReps());
+		  end = start;
+		  try{
+		    for(int i = 0; i<reps; i++)
+		      end = board.step(mover, step, end, start.getColour()!=end.getColour());
+		  }catch(ImpossiblePositionException e){
+			  
+		  }
+	  }
+	  return new Position[] {start,end};
+  }
+  
+  /*
+   * Custom Class for Node
+   */
+  
   public class Node{
 	  Board board;
 	  Node parentNode;
@@ -51,78 +93,111 @@ public class MonteCarlo extends Agent{
 		  this.visits = 0;
 	  }
   }
-    
+   
   
-  
+  /*
+   * Monte Carlo Tree Search algorithm
+   */
   public Position[] MonteCarloTreeSearch(Board board){
 
-	  //initialise with first node
+	  //Initialise with first node
 	  Node rootNode = new Node(board);
-	  Node currentNode = null;	  
+	  Node chooseNode = null;	  
 	  
-	  //initialise move
+	  //Initialise move
 	  Position[] move = null;
 	  
+	  move = iterate(chooseNode, rootNode);
+	  
+	  return move;
+  }
+  
+  /*
+   * Helper function for Monte Carlo Tree Search
+   */
+  public Position[] iterate(Node chooseNode, Node rootNode) {
+	
 	  //Variable to check number of iterations
 	  int iterations = 0;
 	  
-	  //Iterate 100 times
-	  while(iterations <= 5000) {
-		  System.out.println(iterations + "/5000 iterations");
+	  //Iterate 1000 times
+	  while(iterations < 1000) {
 		  
 		  //Find a leaf node with the best UCB score
-		  currentNode = pickLeafNode(rootNode, rootNode.visits);
+		  chooseNode = leafSearch(rootNode, rootNode.visits);
 	  
 		  //Expand the unvisited promising node
-		  if(currentNode.visits > 0) {
-			  expandNode(currentNode);
+		  if(chooseNode.visits > 0) {
+			  expandNode(chooseNode);
 			  
-			  currentNode = currentNode.children.get(0);
+			  //Set chosen node to the selected child node
+			  chooseNode = chooseNode.children.get(0);
 		  }
 		  
-		  rollOut(currentNode, rootNode.board.getTurn());
-		  backPropagate(currentNode);
+		  //rollout nodes (simulate move)
+		  rollOut(chooseNode, rootNode.board.getTurn());
+		  
+		  //back-propagate node scores
+		  backPropagate(chooseNode);
 		  iterations++;
 	  }
 	  //find most visited node
-	  return chooseMove(rootNode);
+	  Position[] move = chooseMove(rootNode);
+	  return move;
   }
+  
 
   
+  /*
+   * Helper Function to choose move to play
+   */
   public Position[] chooseMove(Node rootNode) {
 	  int mostVisits = 0;
 	  Node currentNode = null;
 	  
-	  //Iterate through nodes
-	  int numberOfChildren = rootNode.children.size();
-	  
-	  for(int i = 0; i < numberOfChildren; i++) {
-		  Node child = rootNode.children.get(i);
-		  
+	  //Iterate through children
+	  for(int i = 0; i < rootNode.children.size(); i++) {
+
 		  //Compare if visits on current node is more than most visits
-		  if(child.visits > mostVisits) {
-			  mostVisits = child.visits;
-			  currentNode = child;
+		  if(rootNode.children.get(i).visits > mostVisits) {
+			  mostVisits = rootNode.children.get(i).visits;
+			  currentNode = rootNode.children.get(i);
 		  }
 	  }
 	  
-	  int moveCount = currentNode.board.getMoveCount();
-	  if(moveCount > 0) {
-		  Position[] lastMove = currentNode.board.getMove(moveCount - 1);
+	  //Check if it is the first move and store the previous move, get the next move
+	  if(currentNode.board.getMoveCount() > 0) {
+		  Position[] prevMove = currentNode.board.getMove(currentNode.board.getMoveCount() - 1);
 		  
-		  try {
-			  
-			  //Taken from random agent provided
-			  Position start = Position.get(Colour.values()[lastMove[0].getColour().ordinal()], lastMove[0].getRow(), lastMove[0].getColumn());
-			  Position end = Position.get(Colour.values()[lastMove[1].getColour().ordinal()], lastMove[1].getRow(), lastMove[1].getColumn());
-			  return new Position[] {start,end};
-		  }
-		  catch(ImpossiblePositionException e) {}
+		  return setMove(prevMove);
 	  }
 	  return null;
   }
   
-  public Node pickLeafNode(Node node, int parentvisits){
+  /*
+   * Helper function to set chosen moves
+   */
+  public Position[] setMove(Position[] move) {
+	  try {
+		  
+		  //Taken from random agent provided
+		  Position start = Position.get(Colour.values()[move[0].getColour().ordinal()], move[0].getRow(), move[0].getColumn());
+		  Position end = Position.get(Colour.values()[move[1].getColour().ordinal()], move[1].getRow(), move[1].getColumn());
+		 
+		  Position[] gotMove = {start, end};
+		  return gotMove;
+	  }
+	  catch(ImpossiblePositionException e) {
+		  
+	  }
+	  
+	  return null;
+  }
+  
+  /*
+   * Helper function to find a leaf node within a tree
+   */
+  public Node leafSearch(Node node, int parentvisits){
 	    Node currentnode = node;
 	    while (currentnode.children.size()!= 0){
 
@@ -131,6 +206,9 @@ public class MonteCarlo extends Agent{
 	    return currentnode;
 	  }
   
+  /*
+   * Helper function to find node with highest UCB value
+   */
   public Node UCBcheck(Node node, int pVisits) {
 	  double UCBScore = 0; 
 	  double bestUCBScore = Integer.MIN_VALUE;
@@ -148,29 +226,44 @@ public class MonteCarlo extends Agent{
 	  return bestUCBNode;
   }
   
-  public void expandNode(Node node){
-	  Board initialBoard = node.board;
+  /*
+   * Expand a given node
+   */
+  public void expandNode(Node node){  
+	  Position[] piecePositions = node.board.getPositions(node.board.getTurn()).toArray(new Position[0]);
 	  
-	  Position[] piecePositions = initialBoard.getPositions(node.board.getTurn()).toArray(new Position[0]);
+	  //Iterate through all possible piece positions
+	  pieceIterate(node, piecePositions);
+  }
+  
+  
+  /*
+   * Helper function for piece position iteration
+   */
+  public void pieceIterate(Node node, Position[] piecePositions) {
 	  for(int i = 0; i < piecePositions.length; i++) {
 		  Position start = piecePositions [i];
 		  Position end = piecePositions[i];
 		  
-		  Piece movePiece = initialBoard.getPiece(start);
+		  Piece movePiece = node.board.getPiece(start);
 		  Direction[][] directions = movePiece.getType().getSteps();
-		  int reps = movePiece.getType().getStepReps();
 		  for(int j = 0; j < directions.length; j++) {
 			  try {
-				  end = initialBoard.step(movePiece, directions[j], start);
+				  end = node.board.step(movePiece, directions[j], start);
 			  }
-			  catch(ImpossiblePositionException e) {}
-			  repeatSteps(node, movePiece, start, end, directions[j]);
+			  catch(ImpossiblePositionException e) {
+				  
+			  }
+			  repeatExpand(node, movePiece, start, end, directions[j]);
 		  }
 		  
 	  }
   }
 
-  public void repeatSteps(Node node, Piece movePiece, Position start, Position end, Direction[] direction) {
+  /*
+   * Helper function to repeat simulation of moves
+   */
+  public void repeatExpand(Node node, Piece movePiece, Position start, Position end, Direction[] direction) {
 	  int a = -1;
 	  Board boardSimulation = null;
 	  int reps = movePiece.getType().getStepReps();
@@ -179,36 +272,55 @@ public class MonteCarlo extends Agent{
 		  try {
 			  boardSimulation = (Board)node.board.clone();
 		  }
-		  catch(CloneNotSupportedException e) {};
+		  catch(CloneNotSupportedException e) {
+			  
+		  };
 		  try {
 			  boardSimulation.move(start, end);
 		  }
-		  catch(ImpossiblePositionException e) {}
+		  catch(ImpossiblePositionException e) {
+			  
+		  }
 		  Node newNode = new Node(boardSimulation, node);
 		  node.children.add(newNode);
 		  try {
 			  end = node.board.step(movePiece, direction, end);
 		  }
-		  catch(ImpossiblePositionException e) {};
+		  catch(ImpossiblePositionException e) {
+			  
+		  };
 	  }
   }
   
-  
+  /*
+   * Roll out move by simulating in a cloned board
+   */
   public void rollOut(Node node, Colour playerColour) {
 	  Board boardSimulation = null;
 	  try {
 		  boardSimulation = (Board)node.board.clone();
 	  }
-	  catch(CloneNotSupportedException e) {};
-	  while(boardSimulation.gameOver() != false) {
-		  Position[] executeMoves = playCopyCatMove(boardSimulation);
+	  catch(CloneNotSupportedException e) {
+		  
+	  };
+	  while(boardSimulation.gameOver() != true) {
+		  Position[] executeMoves = playCopyCatOrRandomMove(boardSimulation);
 		  try {
 			  boardSimulation.move(executeMoves[0], executeMoves[1]);
 		  }
-		  catch(ImpossiblePositionException e) {}
+		  catch(ImpossiblePositionException e) {
+			  
+		  }
 	  }
-	  Colour winner = boardSimulation.getWinner();
-	  if(winner == playerColour) {
+	  rollOutScore(boardSimulation, node, playerColour);
+  }
+  
+  /*
+   * Helper function to help calculate score of a move during roll out
+   */
+  public void rollOutScore(Board board, Node node, Colour colour) {
+	  Colour winner = board.getWinner();
+	  if(winner == colour) {
 		  node.score = 1;
 	  }
 	  else {
@@ -221,6 +333,9 @@ public class MonteCarlo extends Agent{
 	  }
   }
   
+  /*
+   * Helper function to back propagate results+score found from exploration of a node
+   */
   public void backPropagate(Node node) {
 	  node.visits++;
 	  int score = node.score;
@@ -232,26 +347,7 @@ public class MonteCarlo extends Agent{
 		  currentNode.visits++;
 	  }
   }
-  
-  public Position[] playCopyCatMove(Board board){
-	  Position[] pieces = board.getPositions(board.getTurn()).toArray(new Position[0]);
-	  Position start = pieces[0];
-	  Position end = pieces[0]; //dummy illegal move
-	  while (!board.isLegalMove(start, end)){
-		  start = pieces[random.nextInt(pieces.length)];
-		  Piece mover = board.getPiece(start);
-		  Direction[][] steps = mover.getType().getSteps();
-		  Direction[] step = steps[random.nextInt(steps.length)];
-		  int reps = 1 + random.nextInt(mover.getType().getStepReps());
-		  end = start;
-		  try{
-		    for(int i = 0; i<reps; i++)
-		      end = board.step(mover, step, end, start.getColour()!=end.getColour());
-		  }catch(ImpossiblePositionException e){}
-	  }
-	  return new Position[] {start,end};
-  }
-  
+
   public Position[] playMove(Board board) {
 	  return MonteCarloTreeSearch(board);
   }
